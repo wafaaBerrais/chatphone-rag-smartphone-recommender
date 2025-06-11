@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatPhone - Phone Recommender</title>
+    <style>
+        /* Reset & Basic Styling */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa, #c3cfe2); /* Lighter gradient */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* Use min-height for flexibility */
+            padding: 20px;
+        }
+
+        /* Main Page Container (Holds both columns) */
+        .page-container {
+            display: flex;
+            width: 90%;
+            max-width: 1100px; /* Max width for the whole layout */
+            height: 85vh; /* Define height for the container */
+            max-height: 750px;
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden; /* Important for rounded corners */
+        }
+
+        /* Left Column: Information Panel */
+        .info-panel {
+            flex: 1; /* Takes up 1 part of the space */
+            background: #fefefe; /* Slightly different background */
+            padding: 40px 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Center content horizontally */
+            justify-content: center; /* Center content vertically */
+            text-align: center;
+            border-right: 1px solid #e0e0e0; /* Separator line */
+        }
+
+        /* --- MODIFIED CSS FOR THE LOGO/IMAGE --- */
+        .info-logo {
+            width: 500px; /* Increased size for the descriptive image */
+            height: auto; /* Maintain aspect ratio */
+            max-width: 100%; /* Ensure it doesn't overflow */
+            margin-bottom: 15px;
+            /* Removed fill property as it's for SVG */
+        }
+        /* --- END OF MODIFIED CSS --- */
+
+        .info-panel h1 {
+            font-size: 2.2em;
+            color: #333;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .info-panel p {
+            font-size: 1em;
+            color: #555;
+            line-height: 1.6;
+            max-width: 80%; /* Prevent text from being too wide */
+        }
+
+        /* Right Column: Chat Container */
+        .chat-container {
+            flex: 2; /* Takes up 2 parts of the space (wider) */
+            display: flex;
+            flex-direction: column;
+            background: #ffffff; /* White background for chat area */
+            height: 100%; /* Fill the height of the page-container */
+        }
+
+        /* Chat Header (Inside Right Column) */
+        .chat-header {
+            background: linear-gradient(90deg, #6a82fb, #ff96c8);
+            color: white;
+            padding: 15px 20px;
+            font-size: 1.1em; /* Slightly smaller header */
+            font-weight: bold;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Chat Messages Area */
+        .chat-messages {
+            flex: 1; /* Takes up remaining vertical space */
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Individual Message Bubbles */
+        .message {
+            max-width: 75%;
+            padding: 10px 15px;
+            border-radius: 18px;
+            margin-bottom: 12px;
+            line-height: 1.5;
+            font-size: 0.95em;
+            word-wrap: break-word;
+        }
+
+        .message.user {
+            background-color: #6a82fb;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+
+        .message.bot {
+            background-color: #e5e5ea;
+            color: #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+
+        /* Chat Input Area */
+        .chat-input {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            border-top: 1px solid #e0e0e0;
+            background-color: #ffffff;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 1px solid #dcdcdc;
+            border-radius: 20px;
+            outline: none;
+            font-size: 1em;
+            margin-right: 10px;
+        }
+
+        .chat-input input:focus {
+            border-color: #6a82fb;
+        }
+
+        .chat-input button {
+            background: #6a82fb;
+            border: none;
+            color: white;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s ease;
+        }
+
+        .chat-input button:hover {
+            background-color: #5870f5;
+        }
+
+        .chat-input button svg {
+            width: 20px;
+            height: 20px;
+            fill: white;
+        }
+
+        /* Scrollbar styling */
+        .chat-messages::-webkit-scrollbar { width: 6px; }
+        .chat-messages::-webkit-scrollbar-thumb { background-color: #c1c1c1; border-radius: 3px; }
+        .chat-messages::-webkit-scrollbar-track { background-color: #f1f1f1; }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .page-container {
+                flex-direction: column;
+                height: 95vh;
+                width: 95%;
+            }
+            .info-panel {
+                flex: 0 0 auto;
+                height: auto; /* Auto height */
+                min-height: 250px; /* Give it some min height */
+                border-right: none;
+                border-bottom: 1px solid #e0e0e0;
+                padding: 20px;
+            }
+            /* Adjust image size for mobile */
+            .info-logo {
+                width: 150px; /* Smaller on mobile */
+                margin-bottom: 15px;
+            }
+            .info-panel h1 {
+                font-size: 1.8em;
+            }
+             .info-panel p {
+                font-size: 0.9em;
+            }
+            .chat-container {
+                flex: 1;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <!-- Left Column: Information -->
+        <div class="info-panel">
+            <!-- --- REPLACED SVG WITH IMAGE --- -->
+            <img src="imgboite.png" alt="AI selecting the best phone from many options" class="info-logo">
+            <!-- --- END OF REPLACEMENT --- -->
+
+            <h1>ChatPHone</h1> <!-- You might want to change this title too if needed -->
+            <p>Votre assistant personnel pour trouver le smartphone idéal. Décrivez vos besoins, votre budget, et je vous ferai les meilleures recommandations !</p>
+        </div>
+
+        <!-- Right Column: Chat Interface (No changes here) -->
+        <div class="chat-container">
+            <div class="chat-header">
+                Conversation
+            </div>
+            <div class="chat-messages" id="chat-messages">
+                <!-- Initial Bot Message -->
+                <div class="message bot">Bonjour ! Je suis ChatPhone. Prêt à trouver votre prochain téléphone ? Dites-moi ce que vous recherchez !</div>
+                <!-- Messages will be added here -->
+            </div>
+            <div class="chat-input">
+                <input type="text" id="user-input" placeholder="Ex: Budget max 500€, bonne photo...">
+                <button id="send-button">
+                    <!-- Send Icon SVG -->
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+    <script>
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput   = document.getElementById('user-input');
+        const sendButton  = document.getElementById('send-button');
+    
+        let isProcessing = false; // Pour bloquer l'envoi tant que le LLM répond
+    
+        function appendMessage(sender, text) {
+            const msg = document.createElement('div');
+            msg.classList.add('message', sender);
+            msg.textContent = text;
+            chatMessages.appendChild(msg);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return msg; // On retourne le message pour pouvoir le modifier ensuite
+        }
+    
+        async function sendMessage() {
+            const messageText = userInput.value.trim();
+            if (!messageText || isProcessing) return;
+    
+            isProcessing = true;
+            userInput.disabled = true;
+            sendButton.disabled = true;
+    
+            // Message utilisateur
+            appendMessage('user', messageText);
+            userInput.value = '';
+    
+            // Placeholder de traitement
+            const processingMessage = appendMessage('bot', 'Je traite votre demande…');
+    
+            try {
+                const resp = await fetch('http://localhost:5000/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: messageText })
+                });
+    
+                const data = await resp.json();
+    
+                // Nettoyer la réponse : enlever les balises <think>...</think>
+                const cleanedResponse = data.response.replace(/<think>.*?<\/think>/gs, '').trim();
+    
+                // Remplacer le message de traitement par la vraie réponse
+                processingMessage.textContent = cleanedResponse;
+    
+            } catch (err) {
+                console.error('Erreur fetch :', err);
+                processingMessage.textContent = 'Oups ! Une erreur est survenue. Réessayez.';
+            }
+    
+            isProcessing = false;
+            userInput.disabled = false;
+            sendButton.disabled = false;
+            userInput.focus();
+        }
+    
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', e => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+    
+</body>
+</html>
