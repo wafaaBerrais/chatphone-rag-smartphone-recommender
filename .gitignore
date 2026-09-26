@@ -1,0 +1,28 @@
+# Dataset and generated indexes (see data/README.md)
+data/*
+!data/README.md
+cache/
+*.csv
+*.zip
+*.pkl
+*.npy
+*.idx
+
+# Model weights
+*.gguf
+*.bin
+*.safetensors
+
+# Secrets
+.env
+ngrok.yml
+
+# Python / Jupyter
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

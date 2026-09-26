@@ -11,17 +11,16 @@ from flask_cors import CORS
 logging.basicConfig(level=logging.INFO)
 
 parser = argparse.ArgumentParser(
-    description="Lancer ChatPhone en spécifiant l'URL Ngrok (optionnel)."
+    description="Lancer ChatPhone en spécifiant l'URL de l'API de recherche (optionnel)."
 )
 parser.add_argument(
-    "ngrok_url", nargs="?", help="URL de votre tunnel Ngrok"
+    "ngrok_url", nargs="?",
+    help="URL de l'API de recherche (locale ou tunnel Ngrok). Par défaut : http://127.0.0.1:8000"
 )
 args = parser.parse_args()
 
-NGROK_URL = args.ngrok_url or os.getenv("NGROK_URL")
-if not NGROK_URL:
-    logging.error("Veuillez passer l'URL Ngrok en argument ou définir la variable d'environnement NGROK_URL.")
-    sys.exit(1)
+NGROK_URL = (args.ngrok_url or os.getenv("SEARCH_API_URL") or os.getenv("NGROK_URL")
+             or "http://127.0.0.1:8000").rstrip("/")
 
 OLLAMA_MODEL = "qwen3:0.6b"
 

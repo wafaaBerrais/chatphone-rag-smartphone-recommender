@@ -1,93 +1,89 @@
-# projet_chatbot_rag
+# ChatPhone: a RAG Chatbot for Smartphone Recommendation
 
+**ChatPhone** answers questions like *"give me a phone with a good camera"* or *"a phone around 150 euros"* with **one recommendation grounded in real Amazon customer reviews**. A plain LLM can recommend products that don't exist or aren't in the catalogue. ChatPhone uses **Retrieval-Augmented Generation (RAG)**: it first retrieves the most relevant reviews, then asks a small local LLM to recommend a phone **only from that context**.
 
+> 🎓 Individual project, L3 Computer Science (Linguistics course), Université Paris Cité, 2024–2025
+> Report (French): [`docs/report_fr.pdf`](docs/report_fr.pdf)
 
-## Getting started
+<p align="center">
+  <img src="docs/figures/chatphone_demo.png" width="760" alt="ChatPhone web interface recommending smartphones"/>
+</p>
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+---
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## Architecture
 
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
+```mermaid
+flowchart LR
+    U([User]) -->|question| F[Web UI<br/>HTML / JS]
+    F -->|POST /chat| B[Flask backend<br/>app.py]
+    B -->|greetings / thanks| F
+    B -->|POST /search| S[Search API<br/>FastAPI]
+    S -->|query embedding| E[Sentence-BERT<br/>all-MiniLM-L6-v2]
+    S -->|top-k similar reviews| I[(FAISS index<br/>Amazon reviews)]
+    B -->|prompt + top-5 reviews| L[Qwen3 0.6B<br/>via Ollama]
+    L -->|one-sentence recommendation| B
+    B --> F
 ```
-cd existing_repo
-git remote add origin https://moule.informatique.univ-paris-diderot.fr/berrais/projet_chatbot_rag.git
-git branch -M main
-git push -uf origin main
+
+| Component | Role |
+|---|---|
+| `notebooks/01_preprocessing_and_search_api.ipynb` | Data preparation, embeddings, FAISS indexes, VADER sentiment indexes and the original search API (Colab + ngrok) |
+| `search_api/search_api.py` | The same search API as a **standalone local service** (no Colab, no ngrok) |
+| `backend/app.py` | Orchestrator: handles small talk, retrieves reviews, builds the prompt and calls the LLM |
+| `frontend/index.html` | Chat interface |
+
+## How it works
+
+1. **Data:** the Amazon Cell Phones Reviews dataset. The product table and the reviews table are joined on `asin`, the useful columns are kept (brand, product title, price, ratings, review title and body), and rows with missing values are dropped.
+2. **Document text:** each review becomes `Brand … Price … Product … Review Title … Review …`.
+3. **Embeddings and index:** Sentence-BERT `all-MiniLM-L6-v2` produces 384-dimensional vectors, stored in a FAISS `IndexFlatL2` for nearest-neighbour search.
+4. **Sentiment filtering:** VADER scores each review, and two extra indexes hold only positive (compound > 0.05) or only negative (< -0.05) reviews.
+5. **Retrieval:** the question is embedded and the 20 closest reviews are returned.
+6. **Generation:** the top 5 reviews are inserted into a **constrained prompt** for Qwen3 0.6B (running locally with Ollama). The prompt imposes three rules:
+   - recommend **exactly one** phone, in one sentence: *"Je recommande le [brand model] car [short justification]"*;
+   - never copy reviews verbatim;
+   - refuse off-topic questions, and say so when no phone in the retrieved context matches.
+
+## Examples
+
+| Question | ChatPhone's answer |
+|---|---|
+| *donne moi un téléphone avec une bonne caméra* | Je recommande le Huawei P20 Pro car il présente une caméra excellente… |
+| *donne moi un téléphone avec un bon stockage* | Je recommande le iPhone 8 Plus car il dispose de 64GB de stockage… |
+| *donne moi un téléphone qui coûte 150 euros ou proche* | Je recommande le Huawei Mate 20 SNE-LX3 64GB car il présente une valeur proche de 150 euros… |
+
+## Running it locally
+
+Requirements: Python 3.10+ and [Ollama](https://ollama.com/download).
+
+```bash
+pip install -r requirements.txt
+ollama pull qwen3:0.6b
+
+# 1. Put the dataset in data/ (see data/README.md), then start the search API.
+#    The first run encodes the ~59,000 reviews and caches them in cache/
+#    (about 30-60 min on a laptop CPU, a few minutes on a GPU; later runs start instantly).
+python search_api/search_api.py --data-dir data --cache-dir cache      # http://127.0.0.1:8000
+#    Quick test on a random sample of 3,000 reviews (about 1-2 min on CPU):
+python search_api/search_api.py --limit 3000
+
+# 2. Start the chatbot backend (it uses http://127.0.0.1:8000 by default)
+python backend/app.py                                                  # http://localhost:5000
+
+# 3. Open frontend/index.html in your browser
 ```
 
-## Integrate with your tools
+To use the Colab version of the search API instead, run the notebook (with `NGROK_AUTHTOKEN` set) and pass its public URL to the backend: `python backend/app.py https://<your-tunnel>.ngrok-free.app`.
 
-- [ ] [Set up project integrations](https://moule.informatique.univ-paris-diderot.fr/berrais/projet_chatbot_rag/-/settings/integrations)
+## Limitations and next steps
 
-## Collaborate with your team
+- **Small LLM:** Qwen3 0.6B runs on a laptop but sometimes ignores the rules. For example, it answered an off-topic question (*"2+2"*) with the "not enough information" message instead of the refusal message.
+- **Retrieval by review similarity:** prices are part of the embedded text, but budget constraints aren't filtered explicitly. Numeric filters (price, storage) plus a re-ranking step would help.
+- **Sentiment indexes** are built (the API accepts `"sentiment": "positive"`), but the backend doesn't use them yet. Without them, a query like *good camera* also retrieves reviews complaining about the camera, so using positive reviews first for recommendations is a natural next step.
+- **Evaluation:** there is no quantitative evaluation yet. A small set of annotated questions (retrieval precision, answer faithfulness) would make it measurable.
+- The dataset is from 2019, so recent phones are missing.
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+## Tech stack
 
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Python · Sentence-Transformers · FAISS · VADER · pandas · FastAPI · Flask · Ollama (Qwen3) · HTML/CSS/JavaScript · Google Colab · ngrok

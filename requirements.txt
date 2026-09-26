@@ -1,0 +1,18 @@
+# Search API (retrieval)
+pandas
+numpy
+sentence-transformers
+faiss-cpu
+vaderSentiment
+fastapi
+uvicorn
+pydantic
+
+# Chatbot backend (generation with Ollama, installed separately: https://ollama.com)
+flask
+flask-cors
+requests
+
+# Only for the Colab notebook version of the search API
+# pyngrok
+# nest_asyncio
